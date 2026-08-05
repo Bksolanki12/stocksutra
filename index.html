@@ -1,94 +1,241 @@
-   DATA GENERATION & APP LOGIC 
-   ============================================================ */
+<!DOCTYPE html> 
+<html lang="en"> 
+<head> 
+<meta charset="UTF-8"> 
+<meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+<title>StockSutra 500 — Nifty 500 Fundamental Analysis</title> 
+<script src="https://cdn.tailwindcss.com"></script> 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script> 
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"> 
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"> 
+<script> 
+tailwind.config={theme:{extend:{fontFamily:{outfit:['Outfit','sans-serif']},colors:{bg:'#0B0E13',card:'#13171F',card2:'#181D27',border:'#1C2231',accent:'#D4882E',accentL:'#F0A84D',txt:'#E4E8EE',muted:'#5F7088',bull:'#1EC964',bear:'#E84057'}}}} 
+</script> 
+<style> 
+:root{--bg:#0B0E13;--card:#13171F;--border:#1C2231;--accent:#D4882E;--txt:#E4E8EE;--muted:#5F7088;--bull:#1EC964;--bear:#E84057} 
+*{margin:0;padding:0;box-sizing:border-box} 
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;overflow-x:hidden} 
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 10% 40%,rgba(212,136,46,.035) 0%,transparent 55%),radial-gradient(ellipse at 90% 80%,rgba(30,201,100,.02) 0%,transparent 50%)} 
+::-webkit-scrollbar{width:5px;height:5px} 
+::-webkit-scrollbar-track{background:var(--bg)} 
+::-webkit-scrollbar-thumb{background:#252d3a;border-radius:3px} 
+
+.ticker-bar{background:linear-gradient(90deg,#080a0f,#10141c,#080a0f);border-bottom:1px solid var(--border);overflow:hidden;white-space:nowrap} 
+.ticker-scroll{display:inline-block;animation:tScroll 50s linear infinite} 
+@keyframes tScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}} 
+
+.search-dd{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:.7rem;max-height:350px;overflow-y:auto;z-index:200;display:none;box-shadow:0 20px 60px rgba(0,0,0,.6)} 
+.search-dd.open{display:block} 
+.sdd-item{padding:.6rem .9rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:background .12s;border-bottom:1px solid rgba(28,34,49,.5);font-size:.88rem} 
+.sdd-item:hover{background:rgba(212,136,46,.08)} 
+
+.tab-b{padding:.55rem 1rem;border-radius:.5rem;cursor:pointer;color:var(--muted);font-weight:500;transition:all .18s;border:none;background:0 0;font-family:'Outfit',sans-serif;font-size:.85rem;white-space:nowrap} 
+.tab-b:hover{color:var(--txt);background:rgba(255,255,255,.03)} 
+.tab-b.on{color:var(--accent);background:rgba(212,136,46,.1)} 
+
+.tc{display:none;animation:fu .3s ease} 
+.tc.on{display:block} 
+@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} 
+
+.mc{background:var(--card);border:1px solid var(--border);border-radius:.85rem;padding:1.1rem;transition:all .22s} 
+.mc:hover{border-color:rgba(212,136,46,.25);box-shadow:0 6px 20px rgba(0,0,0,.25)} 
+
+.sr{width:100%;border-collapse:separate;border-spacing:0} 
+.sr th{background:rgba(255,255,255,.025);padding:.6rem .7rem;text-align:left;font-weight:600;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s} 
+.sr th:hover{color:var(--accent)} 
+.sr td{padding:.55rem .7rem;border-bottom:1px solid rgba(28,34,49,.4);font-size:.85rem;white-space:nowrap} 
+.sr tr:hover td{background:rgba(255,255,255,.015)} 
+.sr .hi{color:var(--bull);font-weight:700} 
+.sr .lo{color:var(--bear);font-weight:600} 
+
+.si{background:rgba(255,255,255,.035);border:1px solid var(--border);border-radius:.5rem;padding:.45rem .65rem;color:var(--txt);font-family:'Outfit',sans-serif;font-size:.85rem;width:100%;outline:0;transition:border-color .15s} 
+.si:focus{border-color:var(--accent)} 
+select.si{cursor:pointer} 
+select.si option{background:var(--card);color:var(--txt)} 
+
+.bp{background:linear-gradient(135deg,var(--accent),#b87020);color:#fff;padding:.55rem 1.3rem;border-radius:.5rem;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;font-size:.85rem;transition:all .18s;box-shadow:0 4px 14px rgba(212,136,46,.22)} 
+.bp:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(212,136,46,.32)} 
+
+.pill{font-size:.72rem;padding:.3rem .7rem;border-radius:1rem;border:1px solid var(--border);color:var(--muted);cursor:pointer;background:0 0;font-family:'Outfit',sans-serif;transition:all .15s;white-space:nowrap} 
+.pill:hover,.pill.on{color:var(--accent);border-color:var(--accent);background:rgba(212,136,46,.08)} 
+
+.heat-cell{border-radius:4px;padding:6px 8px;font-size:.72rem;font-weight:600;text-align:center;cursor:pointer;transition:transform .15s,box-shadow .15s;min-width:85px} 
+.heat-cell:hover{transform:scale(1.08);box-shadow:0 4px 15px rgba(0,0,0,.4);z-index:2;position:relative} 
+
+.score-ring{transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1)} 
+.bk-bar{height:7px;border-radius:4px;background:rgba(255,255,255,.05);overflow:hidden} 
+.bk-fill{height:100%;border-radius:4px;transition:width .7s ease} 
+
+.toast-c{position:fixed;top:4.5rem;right:1rem;z-index:999;display:flex;flex-direction:column;gap:.4rem} 
+.toast{background:var(--card);border:1px solid var(--border);border-radius:.65rem;padding:.6rem 1rem;box-shadow:0 8px 25px rgba(0,0,0,.45);animation:tin .25s ease,tout .25s ease 2.5s forwards;font-size:.85rem;display:flex;align-items:center;gap:.4rem} 
+@keyframes tin{from{opacity:0;transform:translateX(25px)}to{opacity:1;transform:translateX(0)}} 
+@keyframes tout{to{opacity:0;transform:translateX(25px)}} 
+
+@media(max-width:768px){.sr th,.sr td{padding:.4rem .5rem;font-size:.78rem}.tab-b{padding:.4rem .7rem;font-size:.78rem}} 
+@media(prefers-reduced-motion:reduce){.ticker-scroll{animation:none}.tc{animation:none}} 
+</style> 
+</head> 
+<body class="font-outfit"> 
+
+<div class="ticker-bar py-1.5 text-xs relative z-10"><div class="ticker-scroll" id="tickEl"></div></div> 
+
+<header class="relative z-10 border-b border-border"> 
+<div class="max-w-[1400px] mx-auto px-4 py-3 flex items-center gap-5 flex-wrap"> 
+    <div class="flex items-center gap-2.5 shrink-0"> 
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-accent to-amber-700 flex items-center justify-center"><i class="fas fa-chart-line text-white"></i></div> 
+        <div><h1 class="text-lg font-bold tracking-tight leading-tight">StockSutra 500</h1><p class="text-[.65rem] text-muted -mt-0.5">Nifty 500 Fundamentals</p></div> 
+    </div> 
+    <div class="flex-1 max-w-xl relative" id="swrap"> 
+        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs z-10"></i> 
+        <input type="text" id="sinp" placeholder="Search 500 stocks..." class="si pl-8 pr-3 py-2 w-full rounded-lg" autocomplete="off"> 
+        <div class="search-dd" id="sdd"></div> 
+    </div> 
+    <div class="hidden md:flex items-center gap-4 text-xs text-muted"> 
+        <span><i class="fas fa-database mr-1"></i>500 Stocks</span> 
+        <span class="w-1.5 h-1.5 rounded-full bg-bull animate-pulse"></span> 
+        <span>FY2024 Data</span> 
+    </div> 
+</div> 
+</header> 
+
+<nav class="relative z-10 border-b border-border"><div class="max-w-[1400px] mx-auto px-4 flex gap-1 overflow-x-auto py-1.5" id="tabs"> 
+    <button class="tab-b on" data-t="dash"><i class="fas fa-gauge-high mr-1"></i>Dashboard</button> 
+    <button class="tab-b" data-t="sector"><i class="fas fa-layer-group mr-1"></i>Sectors</button> 
+    <button class="tab-b" data-t="stock"><i class="fas fa-microscope mr-1"></i>Stock</button> 
+    <button class="tab-b" data-t="screener"><i class="fas fa-filter mr-1"></i>Screener</button> 
+    <button class="tab-b" data-t="ranks"><i class="fas fa-trophy mr-1"></i>Rankings</button> 
+    <button class="tab-b" data-t="heat"><i class="fas fa-th mr-1"></i>Heatmap</button> 
+</div></nav> 
+
+<main class="relative z-10 max-w-[1400px] mx-auto px-4 py-5"> 
+<div id="p-dash" class="tc on"></div> 
+<div id="p-sector" class="tc"></div> 
+<div id="p-stock" class="tc"></div> 
+<div id="p-screener" class="tc"></div> 
+<div id="p-ranks" class="tc"></div> 
+<div id="p-heat" class="tc"></div> 
+</main> 
+<div class="toast-c" id="toasts"></div> 
+
+<script> 
+const SC = { 
+    'Banking':       {pe:[7,22],pb:[1,3.5],ps:[2,6],roe:[8,22],roa:[.5,2.2],roce:[4,12],de:[0,0],cr:[0,0],div:[.5,2.5],payout:[10,30],mg:[8,28],om:[30,50],cagr:[8,25],pcagr:[10,35],mcapR:[15000,1300000]}, 
+    'IT':            {pe:[20,45],pb:[6,16],ps:[4,12],roe:[25,55],roa:[14,26],roce:[35,65],de:[0,.3],cr:[1.8,3],div:[.5,3],payout:[20,60],mg:[15,24],om:[20,28],cagr:[6,18],pcagr:[5,16],mcapR:[5000,1500000]}, 
+    'FMCG':          {pe:[35,80],pb:[8,18],ps:[4,10],roe:[20,40],roa:[10,22],roce:[25,42],de:[0,.1],cr:[1.2,2.2],div:[.8,3.5],payout:[50,90],mg:[8,30],om:[12,22],cagr:[4,14],pcagr:[2,12],mcapR:[8000,600000]}, 
+    'Oil & Gas':     {pe:[6,18],pb:[.8,3],ps:[.4,1.8],roe:[6,18],roa:[3,10],roce:[8,18],de:[.2,.8],cr:[.8,1.6],div:[.5,4],payout:[15,60],mg:[6,18],om:[10,25],cagr:[8,20],pcagr:[5,22],mcapR:[10000,2000000]}, 
+    'Auto':          {pe:[15,45],pb:[2,7],ps:[1,4],roe:[10,25],roa:[4,10],roce:[12,24],de:[.05,.6],cr:[1.2,2],div:[.3,2],payout:[15,45],mg:[5,14],om:[8,16],cagr:[8,22],pcagr:[8,25],mcapR:[10000,400000]}, 
+    'Pharma':        {pe:[18,50],pb:[2,8],ps:[2,8],roe:[10,25],roa:[5,14],roce:[12,24],de:[.05,.4],cr:[1.5,3.5],div:[.2,2],payout:[10,40],mg:[10,22],om:[15,28],cagr:[5,18],pcagr:[4,20],mcapR:[5000,370000]}, 
+    'Cement':        {pe:[20,55],pb:[1.5,4],ps:[1,3.5],roe:[8,20],roa:[4,10],roce:[10,18],de:[.2,.8],cr:[.8,1.8],div:[.5,3],payout:[15,50],mg:[8,18],om:[14,24],cagr:[5,16],pcagr:[4,18],mcapR:[3000,250000]}, 
+    'Metals':        {pe:[4,16],pb:[.5,3],ps:[.3,1.5],roe:[8,28],roa:[3,12],roce:[10,25],de:[.2,1],cr:[.8,1.8],div:[.5,5],payout:[15,60],mg:[6,20],om:[10,22],cagr:[8,25],pcagr:[5,30],mcapR:[3000,200000]}, 
+    'Power':         {pe:[12,30],pb:[1.5,4],ps:[1,4],roe:[8,18],roa:[3,8],roce:[8,16],de:[.5,2],cr:[.7,1.5],div:[1,4],payout:[25,55],mg:[10,22],om:[22,38],cagr:[6,18],pcagr:[8,25],mcapR:[5000,360000]}, 
+    'Telecom':       {pe:[30,100],pb:[2,7],ps:[1.5,5],roe:[3,12],roa:[1.5,5],roce:[6,14],de:[.5,1.2],cr:[.5,1.2],div:[0,1],payout:[0,20],mg:[8,16],om:[22,35],cagr:[8,20],pcagr:[10,50],mcapR:[20000,950000]}, 
+    'Infrastructure':{pe:[15,45],pb:[2,6],ps:[1,4],roe:[8,20],roa:[3,9],roce:[10,20],de:[.2,1],cr:[1,1.8],div:[.5,2.5],payout:[15,40],mg:[5,14],om:[10,18],cagr:[8,20],pcagr:[5,18],mcapR:[5000,520000]}, 
+    'Financial Svcs':{pe:[12,35],pb:[1.5,5],ps:[3,14],roa:[1.5,4],roe:[10,22],roce:[8,18],de:[2,8],cr:[0,0],div:[.2,1.5],payout:[5,25],mg:[15,30],om:[40,60],cagr:[12,30],pcagr:[10,30],mcapR:[8000,490000]}, 
+    'Consumer Dur':  {pe:[20,60],pb:[3,10],ps:[1.5,5],roe:[12,28],roa:[5,14],roce:[14,26],de:[.05,.5],cr:[1.2,2.2],div:[.5,2.5],payout:[15,50],mg:[6,14],om:[10,18],cagr:[10,25],pcagr:[8,25],mcapR:[3000,280000]}, 
+    'Chemicals':     {pe:[12,40],pb:[1.5,5],ps:[1,4],roe:[10,28],roa:[5,14],roce:[12,24],de:[.1,.6],cr:[1.2,2.5],div:[.5,3],payout:[15,50],mg:[8,20],om:[14,26],cagr:[8,22],pcagr:[5,20],mcapR:[3000,200000]}, 
+    'Realty':        {pe:[15,50],pb:[.8,3.5],ps:[.8,4],roe:[5,18],roa:[2,8],roce:[6,16],de:[.3,1.2],cr:[.6,1.5],div:[.5,3],payout:[10,40],mg:[10,25],om:[18,35],cagr:[5,18],pcagr:[4,20],mcapR:[2000,120000]}, 
+    'Textiles':      {pe:[8,30],pb:[.8,4],ps:[.5,3],roe:[8,22],roa:[4,12],roce:[10,20],de:[.1,.7],cr:[1,2],div:[.5,4],payout:[15,55],mg:[5,15],om:[10,20],cagr:[5,15],pcagr:[3,15],mcapR:[1000,50000]}, 
+    'Media':         {pe:[12,40],pb:[1,5],ps:[1,4],roe:[8,22],roa:[4,12],roce:[10,22],de:[.05,.5],cr:[1.2,2.2],div:[.5,3],payout:[15,45],mg:[8,20],om:[15,28],cagr:[5,18],pcagr:[3,18],mcapR:[1000,80000]}, 
+    'Healthcare':    {pe:[25,65],pb:[4,12],ps:[3,10],roe:[12,28],roa:[6,16],roce:[14,28],de:[.05,.3],cr:[1.5,3],div:[.3,1.5],payout:[10,35],mg:[12,24],om:[20,35],cagr:[8,22],pcagr:[6,20],mcapR:[3000,180000]}
+};
+
+const NAMES = { 
+'Banking':[['HDFC Bank','HDFCBANK'],['ICICI Bank','ICICIBANK'],['State Bank of India','SBIN'],['Bank of Baroda','BANKBARODA'],['Punjab National Bank','PNB'],['Canara Bank','CANBK'],['Union Bank of India','UNIONBANK'],['Indian Bank','INDIANB'],['Bank of India','BANKINDIA'],['Federal Bank','FEDERALBNK'],['Kotak Mahindra Bank','KOTAKBANK'],['IndusInd Bank','INDUSINDBK'],['Axis Bank','AXISBANK'],['Yes Bank','YESBANK'],['IDBI Bank','IDBI'],['South Indian Bank','SOUTHBANK'],['Karur Vysya Bank','KARURVYSYA'],['RBL Bank','RBLBANK'],['UCO Bank','UCOBANK'],['Indian Overseas Bank','IOB'],['Bandhan Bank','BANDHANBNK'],['CSB Bank','CSBBANK'],['Central Bank of India','CENTRALBK'],['Dhanlaxmi Bank','DHANBANK'],['J&K Bank','J&KBANK']], 
+'IT':[['TCS','TCS'],['Infosys','INFY'],['Wipro','WIPRO'],['HCL Technologies','HCLTECH'],['Tech Mahindra','TECHM'],['LTI Mindtree','LTIM'],['L&T Mindtree','LTTS'],['Mphasis','MPHASIS'],['Persistent Systems','PERSISTENT'],['Oracle Financial','OFSS'],['Zensar Technologies','ZENSAR'],['Intellect Design','INTELLECT'],['Hexaware Technologies','HEXAWARE'],['Cyient','CYIENT'],['KPIT Technologies','KPITTECH'],['Tata Elxsi','TATAELXSI'],['Coforge','COFORGE'],['Datamatics Global','DATAMATICS'],['eClerx Services','ECLERX'],['Knowlarity Communications','KNOWLARITY']], 
+'FMCG':[['Hindustan Unilever','HINDUNILVR'],['ITC Limited','ITC'],['Britannia Industries','BRITANNIA'],['Nestle India','NESTLEIND'],['Dabur India','DABUR'],['Godrej Consumer','GODREJCP'],['Marico','MARICO'],['Colgate-Palmolive','COLPAL'],['Emami','EMAMI'],['Hindustan Foods','HINDFOODS'],['Varun Beverages','VBL'],['Tata Consumer','TATACONSUM'],['Ninja Cart','NINJACART'],['Rasna','RASNA'],['Zydus Wellness','ZYDUSWELL']], 
+'Oil & Gas':[['Reliance Industries','RELIANCE'],['ONGC','ONGC'],['Indian Oil Corp','IOC'],['BPCL','BPCL'],['HPCL','HPCL'],['GAIL India','GAIL'],['Petronet LNG','PETRONET'],['Gujarat Gas','GUJGASLTD'],['Oil India','OIL'],['Tata Power','TATAPOWER'],['NTPC Limited','NTPC'],['Power Grid Corp','POWERGRID'],['Adani Total Gas','ATGL'],['Adani Green','ADANIGREEN'],['Adani Energy','ADANIENRG'],['Torrent Power','TORNTPOWER'],['SJVN','SJVN'],['NHPC','NHPC'],['NHAI','NHAI'],['IRFC','IRFC']], 
+'Auto':[['Maruti Suzuki','MARUTI'],['Mahindra & Mahindra','M&M'],['Tata Motors','TATAMOTORS'],['Eicher Motors','EICHERMOT'],['Hero MotoCorp','HEROMOTOCO'],['Bajaj Auto','BAJAJAUTO'],['TVS Motor','TVSMOTOR'],['Motherson Sumi','MOTHERSUMI'],['Bosch Ltd','BOSCHLTD'],['Bharat Forge','BHARATFORG'],['Ashok Leyland','ASHOKLEY'],['MRF','MRF'],['Apollo Tyres','APOLLOTYRE'],['Ceat','CEAT'],['Endurance Technologies','ENDURANCE'],['Samvardhana Motherson','SMPL'],['Exide Industries','EXIDEIND']], 
+'Pharma':[['Sun Pharma','SUNPHARMA'],['Dr Reddys Labs','DRREDDY'],['Cipla','CIPLA'],['Lupin','LUPIN'],['Aurobindo Pharma','AUROPHARMA'],['Biocon','BIOCON'],['Divis Labs','DIVISLAB'],['Torrent Pharma','TORNTPHARMA'],['Zydus Lifesciences','ZYDUSLIFE'],['Alkem Labs','ALKEM'],['Mankind Pharma','MANKIND'],['Ipca Labs','IPCALAB'],['GlaxoSmithKline','GSK'],['AstraZeneca India','ASTRAZEN'],['Pfizer India','PFIZER'],['Sanofi India','SANOFI'],['Laurus Labs','LAURUSLABS'],['Strides Pharma','STRIDES']], 
+'Cement':[['UltraTech Cement','ULTRACEMCO'],['Shree Cement','SHREECEM'],['Ambuja Cements','AMBUJACEM'],['ACC','ACC'],['Dalmia Bharat','DALBHARAT'],['Ramco Cements','RAMCOCEM'],['India Cements','INDIACEM'],['JK Cement','JKCEMENT'],['Nuvoco Vistas','NUVOCO'],['Orient Cement','ORIENTCEM'],['Birla Corp','BIRLACORPN'],['JK Lakshmi Cement','JKLAKSHMI']], 
+'Metals':[['Tata Steel','TATASTEEL'],['JSW Steel','JSWSTEEL'],['Hindalco Industries','HINDALCO'],['Vedanta Limited','VEDL'],['JSPL','JINDALSTEL'],['Steel Authority','SAIL'],['NMDC','NMDC'],['National Aluminium','NATIONALUM'],['Hindustan Zinc','HINDZINC'],['Copper Ltd','COPPER'],['Rashtriya Ispat','RINL'],['Manganese Ore India','MOIL'],['Welspun Corp','WELSPUNCORP'],['Apar Industries','APARINDS']], 
+'Power':[['NTPC Limited','NTPC'],['Power Grid Corp','POWERGRID'],['Tata Power','TATAPOWER'],['Adani Power','ADANIPOWER'],['Torrent Power','TORNTPOWER'],['NHPC','NHPC'],['SJVN','SJVN'],['NHAI','NHAI'],['IRFC','IRFC'],['SJVN Limited','SJVN'],['NHDC','NHDC'],['DAMODAR VALLEY','DVC'],['THDC India','THDCIL'],['North Eastern Electric','NEEPCO']], 
+'Telecom':[['Bharti Airtel','BHARTIARTL'],['Reliance Jio','RELIANCECOM'],['Vodafone Idea','IDEA'],['Tata Communications','TATACOMM'],['Indus Towers','INDUSTOWER'],['HFCL','HFCL'],['Tejas Networks','TEJASNET'],['GTPL Hathway','GTPL'],['Dish TV','DISHTV'],['Den Networks','DENTV']], 
+'Infrastructure':[['Larsen & Toubro','LT'],['Dilip Buildcon','DBL'],['KEC International','KEC'],['JBM Auto','JBMA'],['Kalpataru Power','KPIL'],['ABB India','ABB'],['Siemens India','SIEMENS'],['Schneider Electric','SCHNEIDER'],['Voltas','VOLTAS'],['Blue Star','BLUESTARCO'],['Thermax','THERMAX'],['AECOM India','AECOM'],['Quippo Infrastructure','QUIPPO'],['GMR Infrastructure','GMRINFRA'],['GMR Airports','GMRAIRPORT']], 
+'Financial Svcs':[['Bajaj Finance','BAJFINANCE'],['Bajaj Finserv','BAJAJFINSV'],['SBI Life Insurance','SBILIFE'],['HDFC Life','HDFCLIFE'],['ICICI Prudential','ICICIPRULI'],['Cholamandalam','CHOLAHLDNG'],['Muthoot Finance','MUTHOOTFIN'],['Shriram Finance','SHRIRAMFIN'],['IRFC','IRFC'],['REC Limited','REC'],['PFC','PFC'],['IFFCO Tokio','IFFCOTOKIO'],['SBI General Insurance','SBIGEN'],['LIC India','LIC'],['PB Fintech','POLICYBZR'],['One 97 Communications','PAYTM']], 
+'Consumer Dur':[['Voltas','VOLTAS'],['Blue Star','BLUESTARCO'],['Crompton Greaves','CROMPTON'],['Havells India','HAVELLS'],['Polycab India','POLYCAB'],['Whirlpool India','WHIRLPOOL'],['Dixon Technologies','DIXON'],['Amber Enterprises','AMBER'],['V-Guard Industries','VGUARD'],['Symphony Limited','SYMPHONY'],['Raymond Ltd','RAYMOND'],['TCNS Clothing','TCNSBRANDS']], 
+'Chemicals':[['UPL Limited','UPL'],['PI Industries','PIIND'],['SRF Limited','SRF'],['Aarti Industries','AARTIIND'],['Navin Fluorine','NAVINFLUOR'],['Atul Ltd','ATUL'],['Deepak Nitrite','DEEPAKNTR'],['Solar Industries','SOLARINDS'],['Fine Organics','FINEORG'],['Gujarat Fluorochemicals','FLUOROCHEM'],['Sudarshan Chemical','SUDARSCHEM'],['Sharda Cropchem','SHARDACROP'],['Balaji Amines','BALAMINES'],['India Glycols','INDIAGLYCO']], 
+'Realty':[['DLF Limited','DLF'],['Godrej Properties','GODREJPROP'],['Oberoi Realty','OBEROIRLTY'],['Prestige Estates','PRESTIGE'],['Phoenix Mills','PHOENIXLTD'],['Brigade Enterprises','BRIGADE'],['Sobha Limited','SOBHA'],['Mahindra Life','MAHLIFE'],['DLF Ltd','DLF'],['Indiabulls Real Estate','IBREALEST'],['Sunteck Realty','SUNTECK'],['Bangalore Realty','BANGALORERE']], 
+'Textiles':[['Welspun India','WELSPUNIND'],['Vardhman Textiles','VARDHMAN'],['Trident Limited','TRIDENT'],['Raymond Ltd','RAYMOND'],['Gokaldas Exports','GOKALDAS'],['KPR Mill','KPRMILL'],['Nitin Spinners','NITINSPIN'],['Sutlej Textiles','SUTLEJTEX'],['Jindal Worldwide','JINDWRLD'],['Bombay Dyeing','BOMDYEING']], 
+'Media':[['PVR INOX','PVRINOX'],['Zee Entertainment','ZEEL'],['Sun TV Network','SUNTV'],['Disney Star','DISNEY'],['Jagran Prakashan','JAGRAN'],['HT Media','HTMEDIA'],['Network18','NETWORK18'],['DB Corp','DBCORP'],['India Today','INDIATODAY'],['TV18 Broadcast','TV18BRDCST']], 
+'Healthcare':[['Apollo Hospitals','APOLLOHOSP'],['Fortis Healthcare','FORTIS'],['Max Healthcare','MAXHEALTH'],['Aster DM Healthcare','ASTERDM'],['Dr Lal PathLabs','LALPATHLAB'],['Thyrocare','THYROCARE'],['Metropolis Healthcare','METROPOLIS'],['Healthium Medtech','HEALTHIUM'],['Poly Medicure','POLYMED'],['Star Health Insurance','STARHEALTH']] 
+};
+
 const STOCKS = [];
 for(let sector in NAMES) {
     const cfg = SC[sector];
-    const rand = (arr) => (Math.random() * (arr[1] - arr[0]) + arr[0]);
-    NAMES[sector].forEach(s => {
+    const rand = function(arr) { return (Math.random() * (arr[1] - arr[0]) + arr[0]); };
+    NAMES[sector].forEach(function(s) {
         STOCKS.push({
-            name: s[0], ticker: s[1], sector,
+            name: s[0], ticker: s[1], sector: sector,
             pe: rand(cfg.pe).toFixed(1),
             pb: rand(cfg.pb).toFixed(2),
             roe: rand(cfg.roe).toFixed(1),
-            mcap: (rand(cfg.mcapR)/1000).toFixed(0), // in Cr
-            chg: (Math.random() * 6 - 2).toFixed(2) // random % change
+            mcap: (rand(cfg.mcapR)/1000).toFixed(0),
+            chg: (Math.random() * 6 - 2).toFixed(2)
         });
     });
 }
 
-// Tab Switching Logic
-document.querySelectorAll('#tabs .tab-b').forEach(btn => {
-    btn.onclick = () => {
-        document.querySelectorAll('.tab-b').forEach(b => b.classList.remove('on'));
-        document.querySelectorAll('.tc').forEach(c => c.classList.remove('on'));
+document.querySelectorAll('#tabs .tab-b').forEach(function(btn) {
+    btn.onclick = function() {
+        document.querySelectorAll('.tab-b').forEach(function(b) { b.classList.remove('on'); });
+        document.querySelectorAll('.tc').forEach(function(c) { c.classList.remove('on'); });
         btn.classList.add('on');
         document.getElementById('p-' + btn.dataset.t).classList.add('on');
     };
 });
 
-// Ticker Bar Logic
 let tHtml = '';
-STOCKS.slice(0, 30).forEach(s => {
+STOCKS.slice(0, 30).forEach(function(s) {
     const cls = parseFloat(s.chg) >= 0 ? 'text-bull' : 'text-bear';
     const sign = parseFloat(s.chg) >= 0 ? '+' : '';
-    tHtml += `<span class="mx-4">${s.ticker} <span class="${cls}">${sign}${s.chg}%</span></span>`;
+    tHtml += '<span class="mx-4">' + s.ticker + ' <span class="' + cls + '">' + sign + s.chg + '%</span></span>';
 });
 document.getElementById('tickEl').innerHTML = tHtml + tHtml;
 
-// Dashboard Logic
 const dashEl = document.getElementById('p-dash');
-let dHtml = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-    <div class="mc"><p class="text-muted text-xs uppercase mb-1">Total Stocks</p><h2 class="text-3xl font-bold text-accent">${STOCKS.length}</h2></div>
-    <div class="mc"><p class="text-muted text-xs uppercase mb-1">Sectors Covered</p><h2 class="text-3xl font-bold text-accent">${Object.keys(SC).length}</h2></div>
-    <div class="mc"><p class="text-muted text-xs uppercase mb-1">Data Period</p><h2 class="text-3xl font-bold text-accent">FY2024</h2></div>
-</div>`;
-dHtml += `<div class="mc"><h3 class="text-lg font-bold mb-4">Top Gainers (Mock Data)</h3><div class="overflow-x-auto"><table class="sr"><thead><tr><th>Stock</th><th>Sector</th><th>P/E</th><th>ROE</th><th>Change</th></tr></thead><tbody>`;
-STOCKS.sort((a,b)=>b.chg-a.chg).slice(0,5).forEach(s => {
-    dHtml += `<tr><td><div class="font-semibold">${s.name}</div><div class="text-[.7rem] text-muted">${s.ticker}</div></td><td>${s.sector}</td><td>${s.pe}</td><td>${s.roe}%</td><td class="${parseFloat(s.chg)>=0?'hi':'lo'}">${s.chg}%</td></tr>`;
+let dHtml = '<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5"><div class="mc"><p class="text-muted text-xs uppercase mb-1">Total Stocks</p><h2 class="text-3xl font-bold text-accent">' + STOCKS.length + '</h2></div><div class="mc"><p class="text-muted text-xs uppercase mb-1">Sectors Covered</p><h2 class="text-3xl font-bold text-accent">' + Object.keys(SC).length + '</h2></div><div class="mc"><p class="text-muted text-xs uppercase mb-1">Data Period</p><h2 class="text-3xl font-bold text-accent">FY2024</h2></div></div>';
+dHtml += '<div class="mc"><h3 class="text-lg font-bold mb-4">Top Gainers (Mock Data)</h3><div class="overflow-x-auto"><table class="sr"><thead><tr><th>Stock</th><th>Sector</th><th>P/E</th><th>ROE</th><th>Change</th></tr></thead><tbody>';
+STOCKS.sort(function(a,b){return b.chg-a.chg;}).slice(0,5).forEach(function(s) {
+    dHtml += '<tr><td><div class="font-semibold">' + s.name + '</div><div class="text-[.7rem] text-muted">' + s.ticker + '</div></td><td>' + s.sector + '</td><td>' + s.pe + '</td><td>' + s.roe + '%</td><td class="' + (parseFloat(s.chg)>=0?'hi':'lo') + '">' + s.chg + '%</td></tr>';
 });
-dHtml += `</tbody></table></div></div>`;
+dHtml += '</tbody></table></div></div>';
 dashEl.innerHTML = dHtml;
 
-// Screener Logic
 const scrEl = document.getElementById('p-screener');
-let sHtml = `<div class="mc mb-4 flex gap-3 flex-wrap items-center">
-    <input type="text" placeholder="Min ROE %" class="si max-w-[120px]" id="fMinRoe">
-    <button class="bp" onclick="filterScr()">Apply Filter</button>
-</div>`;
-sHtml += `<div class="mc"><div class="overflow-x-auto"><table class="sr"><thead><tr><th>Stock</th><th>Sector</th><th>Mcap (Cr)</th><th>P/E</th><th>P/B</th><th>ROE</th></tr></thead><tbody id="scrBody">`;
-STOCKS.forEach(s => {
-    sHtml += `<tr><td><div class="font-semibold">${s.name}</div><div class="text-[.7rem] text-muted">${s.ticker}</div></td><td>${s.sector}</td><td>${s.mcap}</td><td>${s.pe}</td><td>${s.pb}</td><td>${s.roe}%</td></tr>`;
+let sHtml = '<div class="mc mb-4 flex gap-3 flex-wrap items-center"><input type="text" placeholder="Min ROE %" class="si max-w-[120px]" id="fMinRoe"><button class="bp" onclick="filterScr()">Apply Filter</button></div>';
+sHtml += '<div class="mc"><div class="overflow-x-auto"><table class="sr"><thead><tr><th>Stock</th><th>Sector</th><th>Mcap (Cr)</th><th>P/E</th><th>P/B</th><th>ROE</th></tr></thead><tbody id="scrBody">';
+STOCKS.forEach(function(s) {
+    sHtml += '<tr><td><div class="font-semibold">' + s.name + '</div><div class="text-[.7rem] text-muted">' + s.ticker + '</div></td><td>' + s.sector + '</td><td>' + s.mcap + '</td><td>' + s.pe + '</td><td>' + s.pb + '</td><td>' + s.roe + '%</td></tr>';
 });
-sHtml += `</tbody></table></div></div>`;
+sHtml += '</tbody></table></div></div>';
 scrEl.innerHTML = sHtml;
 
-window.filterScr = () => {
+window.filterScr = function() {
     const minRoe = parseFloat(document.getElementById('fMinRoe').value) || 0;
     let bodyHtml = '';
-    STOCKS.filter(s => parseFloat(s.roe) >= minRoe).forEach(s => {
-        bodyHtml += `<tr><td><div class="font-semibold">${s.name}</div><div class="text-[.7rem] text-muted">${s.ticker}</div></td><td>${s.sector}</td><td>${s.mcap}</td><td>${s.pe}</td><td>${s.pb}</td><td>${s.roe}%</td></tr>`;
+    STOCKS.filter(function(s) { return parseFloat(s.roe) >= minRoe; }).forEach(function(s) {
+        bodyHtml += '<tr><td><div class="font-semibold">' + s.name + '</div><div class="text-[.7rem] text-muted">' + s.ticker + '</div></td><td>' + s.sector + '</td><td>' + s.mcap + '</td><td>' + s.pe + '</td><td>' + s.pb + '</td><td>' + s.roe + '%</td></tr>';
     });
     document.getElementById('scrBody').innerHTML = bodyHtml;
 };
 
-// Basic Content for other tabs
 document.getElementById('p-sector').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Sector Analysis</h3><p class="text-muted">Detailed sector breakdown will appear here.</p></div>';
 document.getElementById('p-stock').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Stock Microscope</h3><p class="text-muted">Search for a stock above to see deep fundamental analysis.</p></div>';
 document.getElementById('p-ranks').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Market Rankings</h3><p class="text-muted">Top performers across the Nifty 500 will be listed here.</p></div>';
 document.getElementById('p-heat').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Sector Heatmap</h3><p class="text-muted">Visual heatmap of market movements will render here.</p></div>';
 
-// Search Dropdown Logic
 const sinp = document.getElementById('sinp');
 const sdd = document.getElementById('sdd');
-sinp.oninput = () => {
+sinp.oninput = function() {
     const q = sinp.value.toLowerCase();
     if(!q){ sdd.classList.remove('open'); return; }
-    const res = STOCKS.filter(s => s.name.toLowerCase().includes(q) || s.ticker.toLowerCase().includes(q)).slice(0, 10);
+    const res = STOCKS.filter(function(s) { return s.name.toLowerCase().includes(q) || s.ticker.toLowerCase().includes(q); }).slice(0, 10);
     if(res.length === 0){ sdd.classList.remove('open'); return; }
-    sdd.innerHTML = res.map(s => `<div class="sdd-item" onclick="document.getElementById('sinp').value='${s.ticker}';document.getElementById('sdd').classList.remove('open');"><span>${s.name}</span><span class="text-muted text-xs">${s.ticker}</span></div>`).join('');
+    sdd.innerHTML = res.map(function(s) { return '<div class="sdd-item" onclick="document.getElementById(\'sinp\').value=\'' + s.ticker + '\';document.getElementById(\'sdd\').classList.remove(\'open\');"><span>' + s.name + '</span><span class="text-muted text-xs">' + s.ticker + '</span></div>'; }).join('');
     sdd.classList.add('open');
 };
-document.addEventListener('click', (e) => {
+document.addEventListener('click', function(e) {
     if(!document.getElementById('swrap').contains(e.target)) sdd.classList.remove('open');
 });
 </script> 
