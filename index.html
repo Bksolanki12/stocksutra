@@ -47,27 +47,18 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;bac
 .sr tr:hover td{background:rgba(255,255,255,.015)} 
 .sr .hi{color:var(--bull);font-weight:700} 
 .sr .lo{color:var(--bear);font-weight:600} 
-/* Clickable stock styling */
+
 .stock-link{color:var(--accentL);cursor:pointer;transition:color .15s}
 .stock-link:hover{color:var(--accent);text-decoration:underline}
 
 .si{background:rgba(255,255,255,.035);border:1px solid var(--border);border-radius:.5rem;padding:.45rem .65rem;color:var(--txt);font-family:'Outfit',sans-serif;font-size:.85rem;width:100%;outline:0;transition:border-color .15s} 
 .si:focus{border-color:var(--accent)} 
-select.si{cursor:pointer} 
-select.si option{background:var(--card);color:var(--txt)} 
 
 .bp{background:linear-gradient(135deg,var(--accent),#b87020);color:#fff;padding:.55rem 1.3rem;border-radius:.5rem;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;font-size:.85rem;transition:all .18s;box-shadow:0 4px 14px rgba(212,136,46,.22)} 
 .bp:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(212,136,46,.32)} 
 
-.pill{font-size:.72rem;padding:.3rem .7rem;border-radius:1rem;border:1px solid var(--border);color:var(--muted);cursor:pointer;background:0 0;font-family:'Outfit',sans-serif;transition:all .15s;white-space:nowrap} 
-.pill:hover,.pill.on{color:var(--accent);border-color:var(--accent);background:rgba(212,136,46,.08)} 
-
-.heat-cell{border-radius:4px;padding:6px 8px;font-size:.72rem;font-weight:600;text-align:center;cursor:pointer;transition:transform .15s,box-shadow .15s;min-width:85px} 
+.heat-cell{border-radius:4px;padding:8px;display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:pointer;transition:transform .15s,box-shadow .15s;min-height:60px} 
 .heat-cell:hover{transform:scale(1.08);box-shadow:0 4px 15px rgba(0,0,0,.4);z-index:2;position:relative} 
-
-.score-ring{transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1)} 
-.bk-bar{height:7px;border-radius:4px;background:rgba(255,255,255,.05);overflow:hidden} 
-.bk-fill{height:100%;border-radius:4px;transition:width .7s ease} 
 
 .toast-c{position:fixed;top:4.5rem;right:1rem;z-index:999;display:flex;flex-direction:column;gap:.4rem} 
 .toast{background:var(--card);border:1px solid var(--border);border-radius:.65rem;padding:.6rem 1rem;box-shadow:0 8px 25px rgba(0,0,0,.45);animation:tin .25s ease,tout .25s ease 2.5s forwards;font-size:.85rem;display:flex;align-items:center;gap:.4rem} 
@@ -75,7 +66,6 @@ select.si option{background:var(--card);color:var(--txt)}
 @keyframes tout{to{opacity:0;transform:translateX(25px)}} 
 
 @media(max-width:768px){.sr th,.sr td{padding:.4rem .5rem;font-size:.78rem}.tab-b{padding:.4rem .7rem;font-size:.78rem}} 
-@media(prefers-reduced-motion:reduce){.ticker-scroll{animation:none}.tc{animation:none}} 
 </style> 
 </head> 
 <body class="font-outfit"> 
@@ -89,7 +79,7 @@ select.si option{background:var(--card);color:var(--txt)}
         <div><h1 class="text-lg font-bold tracking-tight leading-tight">StockSutra 500</h1><p class="text-[.65rem] text-muted -mt-0.5">Nifty 500 Fundamentals</p></div> 
     </div> 
     <div class="flex-1 max-w-xl relative" id="swrap"> 
-        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs z-10"></i> 
+        <i class="fas fa-search absolute left-3 top:1/2 -translate-y-1/2 text-muted text-xs z-10"></i> 
         <input type="text" id="sinp" placeholder="Search 500 stocks..." class="si pl-8 pr-3 py-2 w-full rounded-lg" autocomplete="off"> 
         <div class="search-dd" id="sdd"></div> 
     </div> 
@@ -118,7 +108,7 @@ select.si option{background:var(--card);color:var(--txt)}
 <div id="p-ranks" class="tc"></div> 
 <div id="p-heat" class="tc"></div> 
 </main> 
-<div class="toast-c" id="toasts"></div> 
+<div class="toast-c" id="toasts"></div>
 
 <script> 
 const SC = { 
@@ -196,20 +186,43 @@ STOCKS.slice(0, 30).forEach(function(s) {
 });
 document.getElementById('tickEl').innerHTML = tHtml + tHtml;
 
-// Function to generate clickable stock cell
 const stockCell = function(s) {
     return '<td><div class="font-semibold stock-link" onclick="selectStock(\'' + s.ticker + '\')">' + s.name + '</div><div class="text-[.7rem] text-muted">' + s.ticker + '</div></td>';
 };
 
+// --- GLOBAL HELPER FUNCTIONS ---
+window.gotoTab = function(tabName) {
+    const btn = document.querySelector('[data-t="' + tabName + '"]');
+    if(btn) btn.click();
+};
+
+window.showToast = function(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.innerHTML = '<i class="fas fa-circle-info text-accent"></i> ' + msg;
+    document.getElementById('toasts').appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+};
+
+// --- DASHBOARD ---
 const dashEl = document.getElementById('p-dash');
-let dHtml = '<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5"><div class="mc"><p class="text-muted text-xs uppercase mb-1">Total Stocks</p><h2 class="text-3xl font-bold text-accent">' + STOCKS.length + '</h2></div><div class="mc"><p class="text-muted text-xs uppercase mb-1">Sectors Covered</p><h2 class="text-3xl font-bold text-accent">' + Object.keys(SC).length + '</h2></div><div class="mc"><p class="text-muted text-xs uppercase mb-1">Data Period</p><h2 class="text-3xl font-bold text-accent">FY2024</h2></div></div>';
-dHtml += '<div class="mc"><h3 class="text-lg font-bold mb-4">Top Gainers (Mock Data)</h3><div class="overflow-x-auto"><table class="sr"><thead><tr><th>Stock</th><th>Sector</th><th>P/E</th><th>ROE</th><th>Change</th></tr></thead><tbody>';
+let dHtml = '<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">';
+// Total Stocks Card (Clickable -> Goes to Screener)
+dHtml += '<div class="mc cursor-pointer hover:border-accent" onclick="gotoTab(\'screener\')"><div class="flex justify-between items-start"><div><p class="text-muted text-xs uppercase mb-1">Total Stocks</p><h2 class="text-3xl font-bold text-accent">' + STOCKS.length + '</h2></div><i class="fas fa-arrow-up-right-from-square text-muted text-sm"></i></div><p class="text-xs text-muted mt-2">Click to view full list</p></div>';
+// Sectors Covered Card (Clickable -> Goes to Sectors)
+dHtml += '<div class="mc cursor-pointer hover:border-accent" onclick="gotoTab(\'sector\')"><div class="flex justify-between items-start"><div><p class="text-muted text-xs uppercase mb-1">Sectors Covered</p><h2 class="text-3xl font-bold text-accent">' + Object.keys(SC).length + '</h2></div><i class="fas fa-arrow-up-right-from-square text-muted text-sm"></i></div><p class="text-xs text-muted mt-2">Click to analyze sectors</p></div>';
+// Data Period Card (Clickable -> Shows Toast)
+dHtml += '<div class="mc cursor-pointer hover:border-accent" onclick="showToast(\'Currently displaying FY2024 fundamental data.\')"><div class="flex justify-between items-start"><div><p class="text-muted text-xs uppercase mb-1">Data Period</p><h2 class="text-3xl font-bold text-accent">FY2024</h2></div><i class="fas fa-circle-info text-muted text-sm"></i></div><p class="text-xs text-muted mt-2">Click for info</p></div>';
+dHtml += '</div>';
+
+dHtml += '<div class="mc"><h3 class="text-lg font-bold mb-4">Top Gainers</h3><div class="overflow-x-auto"><table class="sr"><thead><tr><th>Stock</th><th>Sector</th><th>P/E</th><th>ROE</th><th>Change</th></tr></thead><tbody>';
 STOCKS.sort(function(a,b){return b.chg-a.chg;}).slice(0,5).forEach(function(s) {
     dHtml += '<tr>' + stockCell(s) + '<td>' + s.sector + '</td><td>' + s.pe + '</td><td>' + s.roe + '%</td><td class="' + (parseFloat(s.chg)>=0?'hi':'lo') + '">' + s.chg + '%</td></tr>';
 });
 dHtml += '</tbody></table></div></div>';
 dashEl.innerHTML = dHtml;
 
+// --- SCREENER ---
 const scrEl = document.getElementById('p-screener');
 let sHtml = '<div class="mc mb-4 flex gap-3 flex-wrap items-center"><input type="text" placeholder="Min ROE %" class="si max-w-[120px]" id="fMinRoe"><button class="bp" onclick="filterScr()">Apply Filter</button></div>';
 sHtml += '<div class="mc"><div class="overflow-x-auto"><table class="sr"><thead><tr><th>Stock</th><th>Sector</th><th>Mcap (Cr)</th><th>P/E</th><th>P/B</th><th>ROE</th></tr></thead><tbody id="scrBody">';
@@ -228,23 +241,58 @@ window.filterScr = function() {
     document.getElementById('scrBody').innerHTML = bodyHtml;
 };
 
-document.getElementById('p-sector').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Sector Analysis</h3><p class="text-muted">Detailed sector breakdown will appear here.</p></div>';
-document.getElementById('p-ranks').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Market Rankings</h3><p class="text-muted">Top performers across the Nifty 500 will be listed here.</p></div>';
-document.getElementById('p-heat').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Sector Heatmap</h3><p class="text-muted">Visual heatmap of market movements will render here.</p></div>';
+// --- SECTOR ANALYSIS ---
+let secHtml = '<div class="mc"><h3 class="text-xl font-bold mb-4">Sector Fundamental Analysis</h3><div class="overflow-x-auto"><table class="sr"><thead><tr><th>Sector</th><th>Stocks</th><th>Avg P/E</th><th>Avg P/B</th><th>Avg ROE</th><th>Total Mcap (Cr)</th></tr></thead><tbody>';
+for(let sec in SC) {
+    const secStocks = STOCKS.filter(s => s.sector === sec);
+    const count = secStocks.length;
+    const avgPe = (secStocks.reduce((a,b) => a + parseFloat(b.pe), 0) / count).toFixed(1);
+    const avgPb = (secStocks.reduce((a,b) => a + parseFloat(b.pb), 0) / count).toFixed(2);
+    const avgRoe = (secStocks.reduce((a,b) => a + parseFloat(b.roe), 0) / count).toFixed(1);
+    const totMcap = secStocks.reduce((a,b) => a + parseFloat(b.mcap), 0).toLocaleString();
+    secHtml += '<tr><td class="font-semibold text-accent">' + sec + '</td><td>' + count + '</td><td>' + avgPe + '</td><td>' + avgPb + '</td><td>' + avgRoe + '%</td><td>' + totMcap + '</td></tr>';
+}
+secHtml += '</tbody></table></div></div>';
+document.getElementById('p-sector').innerHTML = secHtml;
 
+// --- RANKINGS ---
+const renderRankTable = (title, sortKey) => {
+    let sorted = [...STOCKS].sort((a,b) => parseFloat(b[sortKey]) - parseFloat(a[sortKey])).slice(0, 10);
+    let t = '<div class="mc"><h3 class="text-lg font-bold mb-3">' + title + '</h3><div class="overflow-x-auto"><table class="sr"><thead><tr><th>Rank</th><th>Stock</th><th>Value</th></tr></thead><tbody>';
+    sorted.forEach((s, i) => {
+        let val = sortKey === 'mcap' ? '₹ ' + s.mcap + ' Cr' : (sortKey === 'roe' ? s.roe + '%' : s.chg + '%');
+        t += '<tr><td class="font-bold text-muted">' + (i+1) + '</td>' + stockCell(s) + '<td class="font-semibold">' + val + '</td></tr>';
+    });
+    t += '</tbody></table></div></div>';
+    return t;
+};
+document.getElementById('p-ranks').innerHTML = '<div class="grid grid-cols-1 md:grid-cols-3 gap-4">' + 
+    renderRankTable('Top 10 by Market Cap', 'mcap') + 
+    renderRankTable('Top 10 by ROE', 'roe') + 
+    renderRankTable('Top 10 Gainers', 'chg') + 
+'</div>';
+
+// --- HEATMAP ---
+let heatHtml = '<div class="mc"><h3 class="text-xl font-bold mb-4">Market Heatmap</h3><div class="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-8 gap-2">';
+STOCKS.forEach(s => {
+    const chg = parseFloat(s.chg);
+    let bg = chg > 2 ? 'rgba(30,201,100,0.7)' : chg > 0 ? 'rgba(30,201,100,0.35)' : chg > -2 ? 'rgba(232,64,87,0.35)' : 'rgba(232,64,87,0.7)';
+    heatHtml += '<div class="heat-cell" style="background:' + bg + '" onclick="selectStock(\'' + s.ticker + '\')"><span class="text-xs font-bold">' + s.ticker + '</span><span class="text-[.65rem]">' + s.chg + '%</span></div>';
+});
+heatHtml += '</div></div>';
+document.getElementById('p-heat').innerHTML = heatHtml;
+
+// --- STOCK PROFILE ---
 const sinp = document.getElementById('sinp');
 const sdd = document.getElementById('sdd');
 
-// Function that builds and displays the Stock Details Profile
 window.selectStock = function(ticker) {
     const stock = STOCKS.find(function(s) { return s.ticker === ticker; });
     if (!stock) return;
     
-    // Clear search and hide dropdown
     sinp.value = '';
     sdd.classList.remove('open');
     
-    // Switch to Stock tab
     document.querySelectorAll('.tab-b').forEach(function(b) { b.classList.remove('on'); });
     document.querySelectorAll('.tc').forEach(function(c) { c.classList.remove('on'); });
     document.querySelector('[data-t="stock"]').classList.add('on');
