@@ -47,6 +47,9 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;bac
 .sr tr:hover td{background:rgba(255,255,255,.015)} 
 .sr .hi{color:var(--bull);font-weight:700} 
 .sr .lo{color:var(--bear);font-weight:600} 
+/* Clickable stock styling */
+.stock-link{color:var(--accentL);cursor:pointer;transition:color .15s}
+.stock-link:hover{color:var(--accent);text-decoration:underline}
 
 .si{background:rgba(255,255,255,.035);border:1px solid var(--border);border-radius:.5rem;padding:.45rem .65rem;color:var(--txt);font-family:'Outfit',sans-serif;font-size:.85rem;width:100%;outline:0;transition:border-color .15s} 
 .si:focus{border-color:var(--accent)} 
@@ -193,11 +196,16 @@ STOCKS.slice(0, 30).forEach(function(s) {
 });
 document.getElementById('tickEl').innerHTML = tHtml + tHtml;
 
+// Function to generate clickable stock cell
+const stockCell = function(s) {
+    return '<td><div class="font-semibold stock-link" onclick="selectStock(\'' + s.ticker + '\')">' + s.name + '</div><div class="text-[.7rem] text-muted">' + s.ticker + '</div></td>';
+};
+
 const dashEl = document.getElementById('p-dash');
 let dHtml = '<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5"><div class="mc"><p class="text-muted text-xs uppercase mb-1">Total Stocks</p><h2 class="text-3xl font-bold text-accent">' + STOCKS.length + '</h2></div><div class="mc"><p class="text-muted text-xs uppercase mb-1">Sectors Covered</p><h2 class="text-3xl font-bold text-accent">' + Object.keys(SC).length + '</h2></div><div class="mc"><p class="text-muted text-xs uppercase mb-1">Data Period</p><h2 class="text-3xl font-bold text-accent">FY2024</h2></div></div>';
 dHtml += '<div class="mc"><h3 class="text-lg font-bold mb-4">Top Gainers (Mock Data)</h3><div class="overflow-x-auto"><table class="sr"><thead><tr><th>Stock</th><th>Sector</th><th>P/E</th><th>ROE</th><th>Change</th></tr></thead><tbody>';
 STOCKS.sort(function(a,b){return b.chg-a.chg;}).slice(0,5).forEach(function(s) {
-    dHtml += '<tr><td><div class="font-semibold">' + s.name + '</div><div class="text-[.7rem] text-muted">' + s.ticker + '</div></td><td>' + s.sector + '</td><td>' + s.pe + '</td><td>' + s.roe + '%</td><td class="' + (parseFloat(s.chg)>=0?'hi':'lo') + '">' + s.chg + '%</td></tr>';
+    dHtml += '<tr>' + stockCell(s) + '<td>' + s.sector + '</td><td>' + s.pe + '</td><td>' + s.roe + '%</td><td class="' + (parseFloat(s.chg)>=0?'hi':'lo') + '">' + s.chg + '%</td></tr>';
 });
 dHtml += '</tbody></table></div></div>';
 dashEl.innerHTML = dHtml;
@@ -206,7 +214,7 @@ const scrEl = document.getElementById('p-screener');
 let sHtml = '<div class="mc mb-4 flex gap-3 flex-wrap items-center"><input type="text" placeholder="Min ROE %" class="si max-w-[120px]" id="fMinRoe"><button class="bp" onclick="filterScr()">Apply Filter</button></div>';
 sHtml += '<div class="mc"><div class="overflow-x-auto"><table class="sr"><thead><tr><th>Stock</th><th>Sector</th><th>Mcap (Cr)</th><th>P/E</th><th>P/B</th><th>ROE</th></tr></thead><tbody id="scrBody">';
 STOCKS.forEach(function(s) {
-    sHtml += '<tr><td><div class="font-semibold">' + s.name + '</div><div class="text-[.7rem] text-muted">' + s.ticker + '</div></td><td>' + s.sector + '</td><td>' + s.mcap + '</td><td>' + s.pe + '</td><td>' + s.pb + '</td><td>' + s.roe + '%</td></tr>';
+    sHtml += '<tr>' + stockCell(s) + '<td>' + s.sector + '</td><td>' + s.mcap + '</td><td>' + s.pe + '</td><td>' + s.pb + '</td><td>' + s.roe + '%</td></tr>';
 });
 sHtml += '</tbody></table></div></div>';
 scrEl.innerHTML = sHtml;
@@ -215,26 +223,63 @@ window.filterScr = function() {
     const minRoe = parseFloat(document.getElementById('fMinRoe').value) || 0;
     let bodyHtml = '';
     STOCKS.filter(function(s) { return parseFloat(s.roe) >= minRoe; }).forEach(function(s) {
-        bodyHtml += '<tr><td><div class="font-semibold">' + s.name + '</div><div class="text-[.7rem] text-muted">' + s.ticker + '</div></td><td>' + s.sector + '</td><td>' + s.mcap + '</td><td>' + s.pe + '</td><td>' + s.pb + '</td><td>' + s.roe + '%</td></tr>';
+        bodyHtml += '<tr>' + stockCell(s) + '<td>' + s.sector + '</td><td>' + s.mcap + '</td><td>' + s.pe + '</td><td>' + s.pb + '</td><td>' + s.roe + '%</td></tr>';
     });
     document.getElementById('scrBody').innerHTML = bodyHtml;
 };
 
 document.getElementById('p-sector').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Sector Analysis</h3><p class="text-muted">Detailed sector breakdown will appear here.</p></div>';
-document.getElementById('p-stock').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Stock Microscope</h3><p class="text-muted">Search for a stock above to see deep fundamental analysis.</p></div>';
 document.getElementById('p-ranks').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Market Rankings</h3><p class="text-muted">Top performers across the Nifty 500 will be listed here.</p></div>';
 document.getElementById('p-heat').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Sector Heatmap</h3><p class="text-muted">Visual heatmap of market movements will render here.</p></div>';
 
 const sinp = document.getElementById('sinp');
 const sdd = document.getElementById('sdd');
+
+// Function that builds and displays the Stock Details Profile
+window.selectStock = function(ticker) {
+    const stock = STOCKS.find(function(s) { return s.ticker === ticker; });
+    if (!stock) return;
+    
+    // Clear search and hide dropdown
+    sinp.value = '';
+    sdd.classList.remove('open');
+    
+    // Switch to Stock tab
+    document.querySelectorAll('.tab-b').forEach(function(b) { b.classList.remove('on'); });
+    document.querySelectorAll('.tc').forEach(function(c) { c.classList.remove('on'); });
+    document.querySelector('[data-t="stock"]').classList.add('on');
+    document.getElementById('p-stock').classList.add('on');
+    
+    const chgClass = parseFloat(stock.chg) >= 0 ? 'hi' : 'lo';
+    const chgSign = parseFloat(stock.chg) >= 0 ? '+' : '';
+    
+    let html = '<div class="mc mb-4"><div class="flex justify-between items-start flex-wrap gap-3"><div><h2 class="text-2xl font-bold">' + stock.name + '</h2><p class="text-muted text-sm">' + stock.ticker + ' • ' + stock.sector + '</p></div><div class="text-right"><p class="text-2xl font-bold">₹' + (stock.mcap * 0.1).toFixed(0) + ' Cr</p><p class="' + chgClass + ' text-sm">' + chgSign + stock.chg + '% Today</p></div></div></div>';
+    
+    html += '<div class="grid grid-cols-2 md:grid-cols-4 gap-4">';
+    html += '<div class="mc"><p class="text-muted text-xs uppercase mb-1">Market Cap (Cr)</p><h3 class="text-xl font-bold">' + stock.mcap + '</h3></div>';
+    html += '<div class="mc"><p class="text-muted text-xs uppercase mb-1">P/E Ratio</p><h3 class="text-xl font-bold">' + stock.pe + '</h3></div>';
+    html += '<div class="mc"><p class="text-muted text-xs uppercase mb-1">P/B Ratio</p><h3 class="text-xl font-bold">' + stock.pb + '</h3></div>';
+    html += '<div class="mc"><p class="text-muted text-xs uppercase mb-1">ROE</p><h3 class="text-xl font-bold">' + stock.roe + '%</h3></div>';
+    html += '<div class="mc"><p class="text-muted text-xs uppercase mb-1">Debt/Equity</p><h3 class="text-xl font-bold">' + (Math.random() * 1).toFixed(2) + '</h3></div>';
+    html += '<div class="mc"><p class="text-muted text-xs uppercase mb-1">Div Yield</p><h3 class="text-xl font-bold">' + (Math.random() * 2).toFixed(2) + '%</h3></div>';
+    html += '<div class="mc"><p class="text-muted text-xs uppercase mb-1">ROCE</p><h3 class="text-xl font-bold">' + (parseFloat(stock.roe) * 1.1).toFixed(1) + '%</h3></div>';
+    html += '<div class="mc"><p class="text-muted text-xs uppercase mb-1">5Y CAGR</p><h3 class="text-xl font-bold">' + (Math.random() * 20 + 5).toFixed(1) + '%</h3></div>';
+    html += '</div>';
+    
+    document.getElementById('p-stock').innerHTML = html;
+};
+
 sinp.oninput = function() {
     const q = sinp.value.toLowerCase();
     if(!q){ sdd.classList.remove('open'); return; }
     const res = STOCKS.filter(function(s) { return s.name.toLowerCase().includes(q) || s.ticker.toLowerCase().includes(q); }).slice(0, 10);
     if(res.length === 0){ sdd.classList.remove('open'); return; }
-    sdd.innerHTML = res.map(function(s) { return '<div class="sdd-item" onclick="document.getElementById(\'sinp\').value=\'' + s.ticker + '\';document.getElementById(\'sdd\').classList.remove(\'open\');"><span>' + s.name + '</span><span class="text-muted text-xs">' + s.ticker + '</span></div>'; }).join('');
+    sdd.innerHTML = res.map(function(s) { 
+        return '<div class="sdd-item" onclick="selectStock(\'' + s.ticker + '\')"><span>' + s.name + '</span><span class="text-muted text-xs">' + s.ticker + '</span></div>'; 
+    }).join('');
     sdd.classList.add('open');
 };
+
 document.addEventListener('click', function(e) {
     if(!document.getElementById('swrap').contains(e.target)) sdd.classList.remove('open');
 });
