@@ -1,0 +1,96 @@
+   DATA GENERATION & APP LOGIC 
+   ============================================================ */
+const STOCKS = [];
+for(let sector in NAMES) {
+    const cfg = SC[sector];
+    const rand = (arr) => (Math.random() * (arr[1] - arr[0]) + arr[0]);
+    NAMES[sector].forEach(s => {
+        STOCKS.push({
+            name: s[0], ticker: s[1], sector,
+            pe: rand(cfg.pe).toFixed(1),
+            pb: rand(cfg.pb).toFixed(2),
+            roe: rand(cfg.roe).toFixed(1),
+            mcap: (rand(cfg.mcapR)/1000).toFixed(0), // in Cr
+            chg: (Math.random() * 6 - 2).toFixed(2) // random % change
+        });
+    });
+}
+
+// Tab Switching Logic
+document.querySelectorAll('#tabs .tab-b').forEach(btn => {
+    btn.onclick = () => {
+        document.querySelectorAll('.tab-b').forEach(b => b.classList.remove('on'));
+        document.querySelectorAll('.tc').forEach(c => c.classList.remove('on'));
+        btn.classList.add('on');
+        document.getElementById('p-' + btn.dataset.t).classList.add('on');
+    };
+});
+
+// Ticker Bar Logic
+let tHtml = '';
+STOCKS.slice(0, 30).forEach(s => {
+    const cls = parseFloat(s.chg) >= 0 ? 'text-bull' : 'text-bear';
+    const sign = parseFloat(s.chg) >= 0 ? '+' : '';
+    tHtml += `<span class="mx-4">${s.ticker} <span class="${cls}">${sign}${s.chg}%</span></span>`;
+});
+document.getElementById('tickEl').innerHTML = tHtml + tHtml;
+
+// Dashboard Logic
+const dashEl = document.getElementById('p-dash');
+let dHtml = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+    <div class="mc"><p class="text-muted text-xs uppercase mb-1">Total Stocks</p><h2 class="text-3xl font-bold text-accent">${STOCKS.length}</h2></div>
+    <div class="mc"><p class="text-muted text-xs uppercase mb-1">Sectors Covered</p><h2 class="text-3xl font-bold text-accent">${Object.keys(SC).length}</h2></div>
+    <div class="mc"><p class="text-muted text-xs uppercase mb-1">Data Period</p><h2 class="text-3xl font-bold text-accent">FY2024</h2></div>
+</div>`;
+dHtml += `<div class="mc"><h3 class="text-lg font-bold mb-4">Top Gainers (Mock Data)</h3><div class="overflow-x-auto"><table class="sr"><thead><tr><th>Stock</th><th>Sector</th><th>P/E</th><th>ROE</th><th>Change</th></tr></thead><tbody>`;
+STOCKS.sort((a,b)=>b.chg-a.chg).slice(0,5).forEach(s => {
+    dHtml += `<tr><td><div class="font-semibold">${s.name}</div><div class="text-[.7rem] text-muted">${s.ticker}</div></td><td>${s.sector}</td><td>${s.pe}</td><td>${s.roe}%</td><td class="${parseFloat(s.chg)>=0?'hi':'lo'}">${s.chg}%</td></tr>`;
+});
+dHtml += `</tbody></table></div></div>`;
+dashEl.innerHTML = dHtml;
+
+// Screener Logic
+const scrEl = document.getElementById('p-screener');
+let sHtml = `<div class="mc mb-4 flex gap-3 flex-wrap items-center">
+    <input type="text" placeholder="Min ROE %" class="si max-w-[120px]" id="fMinRoe">
+    <button class="bp" onclick="filterScr()">Apply Filter</button>
+</div>`;
+sHtml += `<div class="mc"><div class="overflow-x-auto"><table class="sr"><thead><tr><th>Stock</th><th>Sector</th><th>Mcap (Cr)</th><th>P/E</th><th>P/B</th><th>ROE</th></tr></thead><tbody id="scrBody">`;
+STOCKS.forEach(s => {
+    sHtml += `<tr><td><div class="font-semibold">${s.name}</div><div class="text-[.7rem] text-muted">${s.ticker}</div></td><td>${s.sector}</td><td>${s.mcap}</td><td>${s.pe}</td><td>${s.pb}</td><td>${s.roe}%</td></tr>`;
+});
+sHtml += `</tbody></table></div></div>`;
+scrEl.innerHTML = sHtml;
+
+window.filterScr = () => {
+    const minRoe = parseFloat(document.getElementById('fMinRoe').value) || 0;
+    let bodyHtml = '';
+    STOCKS.filter(s => parseFloat(s.roe) >= minRoe).forEach(s => {
+        bodyHtml += `<tr><td><div class="font-semibold">${s.name}</div><div class="text-[.7rem] text-muted">${s.ticker}</div></td><td>${s.sector}</td><td>${s.mcap}</td><td>${s.pe}</td><td>${s.pb}</td><td>${s.roe}%</td></tr>`;
+    });
+    document.getElementById('scrBody').innerHTML = bodyHtml;
+};
+
+// Basic Content for other tabs
+document.getElementById('p-sector').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Sector Analysis</h3><p class="text-muted">Detailed sector breakdown will appear here.</p></div>';
+document.getElementById('p-stock').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Stock Microscope</h3><p class="text-muted">Search for a stock above to see deep fundamental analysis.</p></div>';
+document.getElementById('p-ranks').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Market Rankings</h3><p class="text-muted">Top performers across the Nifty 500 will be listed here.</p></div>';
+document.getElementById('p-heat').innerHTML = '<div class="mc"><h3 class="text-xl font-bold mb-2">Sector Heatmap</h3><p class="text-muted">Visual heatmap of market movements will render here.</p></div>';
+
+// Search Dropdown Logic
+const sinp = document.getElementById('sinp');
+const sdd = document.getElementById('sdd');
+sinp.oninput = () => {
+    const q = sinp.value.toLowerCase();
+    if(!q){ sdd.classList.remove('open'); return; }
+    const res = STOCKS.filter(s => s.name.toLowerCase().includes(q) || s.ticker.toLowerCase().includes(q)).slice(0, 10);
+    if(res.length === 0){ sdd.classList.remove('open'); return; }
+    sdd.innerHTML = res.map(s => `<div class="sdd-item" onclick="document.getElementById('sinp').value='${s.ticker}';document.getElementById('sdd').classList.remove('open');"><span>${s.name}</span><span class="text-muted text-xs">${s.ticker}</span></div>`).join('');
+    sdd.classList.add('open');
+};
+document.addEventListener('click', (e) => {
+    if(!document.getElementById('swrap').contains(e.target)) sdd.classList.remove('open');
+});
+</script> 
+</body> 
+</html>
